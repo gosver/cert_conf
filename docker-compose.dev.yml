@@ -1,0 +1,52 @@
+version: '3.7'
+services:
+  mysql:
+    image: mysql:8.1
+    restart: always
+    volumes:
+      - ./db/db_dev:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: black_financier
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "8101:3306" 
+    command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci', '--lower_case_table_names=1']
+    container_name: bf_db
+  web:
+    build:
+      context: ./
+      dockerfile: ./back/Dockerfile
+    command: python ./financier_web_main/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./back:/usr/src/app/
+    depends_on:
+      - mysql
+    ports:
+      - 8000:8000
+    env_file:
+      - ./.env.dev
+    container_name: bf_django
+  telegram:
+    build:
+      context: ./
+      dockerfile: ./back/Dockerfile_telegram
+    command: python ./financier_telegrambot/__main__.py
+    volumes:
+      - ./back:/usr/src/app/
+    depends_on:
+      - web
+    env_file:
+      - ./.env.dev
+    container_name: bf_telegram
+  react:
+    container_name: bf_react
+    build:
+      context: .
+      dockerfile: ./front/Dockerfile.react
+    volumes:
+      - './front:/app'
+      - './front/node_modules:/app/node_modules'
+    #depends_on:
+    #  - web
+    ports:
+      - '3000:3000'
